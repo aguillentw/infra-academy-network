@@ -17,3 +17,7 @@
 #  description = "Public subnets CIDR ids"
 #  value = values(aws_subnet.ag_public-subnet)[*].id
 #}
+
+output "hello_world" {
+  value = "Hello, World!"
+}
