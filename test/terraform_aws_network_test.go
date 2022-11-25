@@ -6,53 +6,40 @@ import (
 	"github.com/gruntwork-io/terratest/modules/aws"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// An example of how to test the Terraform module in examples/terraform-aws-network-example using Terratest.
-func TestTerraformAwsNetworkExample(t *testing.T) {
-	t.Parallel()
-
-	// Pick a random AWS region to test in. This helps ensure your code works in all regions.
-	// awsRegion := aws.GetRandomStableRegion(t, nil, nil)
+func TestVpcId(t *testing.T) {
+	// GIVEN ------------------------------------------------------------------
+	vpcCidr := "10.10.0.0/16"
 	awsRegion := "eu-west-1"
+	vpcName := "ag_vpc"
 
-	// Give the VPC and the subnets correct CIDRs
-	//vpcCidr := "10.10.0.0/16"
-	//privateSubnetCidr := "10.10.1.0/24"
-	//publicSubnetCidr := "10.10.2.0/24"
-
-	// Construct the terraform options with default retryable errors to handle the most common retryable errors in
-	// terraform testing.
+	// Construct the terraform options with default retryable errors to handle the most common
+	// retryable errors in terraform testing.
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		// The path to where our Terraform code is located
+		// Set the path to the Terraform code that will be tested.
 		TerraformDir: "..",
 
 		// Variables to pass to our Terraform code using -var options
 		Vars: map[string]interface{}{
-			//"main_vpc_cidr":       vpcCidr,
-			//"private_subnet_cidr": privateSubnetCidr,
-			//"public_subnet_cidr":  publicSubnetCidr,
+			"vpc_cidr": vpcCidr,
+			//			"private_subnet_cidr": privateSubnetCidr,
+			//			"public_subnet_cidr":  publicSubnetCidr,
 			"aws_region": awsRegion,
 		},
 	})
 
-	// At the end of the test, run `terraform destroy` to clean up any resources that were created
+	// WHEN -------------------------------------------------------------------
+	// Clean up resources with "terraform destroy" at the end of the test.
 	defer terraform.Destroy(t, terraformOptions)
 
-	// This will run `terraform init` and `terraform apply` and fail the test if there are any errors
+	// Run "terraform init" and "terraform apply". Fail the test if there are any errors.
 	terraform.InitAndApply(t, terraformOptions)
 
-	// Run `terraform output` to get the value of an output variable
-	publicSubnetId := terraform.Output(t, terraformOptions, "public_subnet_id")
-	privateSubnetId := terraform.Output(t, terraformOptions, "private_subnet_id")
-	vpcId := terraform.Output(t, terraformOptions, "main_vpc_id")
+	// THEN -------------------------------------------------------------------
+	// Run `terraform output` to get the values of output variables and check they have the expected values.
+	actualVpcIdOutput := terraform.Output(t, terraformOptions, "vpc_id")
 
-	subnets := aws.GetSubnetsForVpc(t, vpcId, awsRegion)
-
-	require.Equal(t, 2, len(subnets))
-	// Verify if the network that is supposed to be public is really public
-	assert.True(t, aws.IsPublicSubnet(t, publicSubnetId, awsRegion))
-	// Verify if the network that is supposed to be private is really private
-	assert.False(t, aws.IsPublicSubnet(t, privateSubnetId, awsRegion))
+	actualVpc := aws.GetVpcById(t, actualVpcIdOutput, awsRegion)
+	assert.Equal(t, vpcName, actualVpc.Name)
 }
